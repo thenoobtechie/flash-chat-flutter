@@ -1,10 +1,11 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flash_chat/components/messages_stream.dart';
 import 'package:flash_chat/screens/welcome_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flash_chat/constants.dart';
 
 class ChatScreen extends StatefulWidget {
-
   static const String id = "/chat_screen";
 
   @override
@@ -12,9 +13,12 @@ class ChatScreen extends StatefulWidget {
 }
 
 class _ChatScreenState extends State<ChatScreen> {
-
   final _auth = FirebaseAuth.instance;
+  final db = Firestore.instance;
+  final msgTxtController = TextEditingController();
+
   FirebaseUser loggedInUser;
+  String message;
 
   @override
   void initState() {
@@ -26,6 +30,7 @@ class _ChatScreenState extends State<ChatScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.white,
       appBar: AppBar(
         leading: null,
         actions: <Widget>[
@@ -44,6 +49,7 @@ class _ChatScreenState extends State<ChatScreen> {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: <Widget>[
+            MessagesStream(currentUserEmail: loggedInUser!=null ? loggedInUser.email : "",),
             Container(
               decoration: kMessageContainerDecoration,
               child: Row(
@@ -51,15 +57,22 @@ class _ChatScreenState extends State<ChatScreen> {
                 children: <Widget>[
                   Expanded(
                     child: TextField(
+                      controller: msgTxtController,
+                      style: kSendMessageTextStyle,
                       onChanged: (value) {
-                        //Do something with the user input.
+                        message = value;
                       },
-                      decoration: kMessageTextFieldDecoration,
+                      decoration: kMessageTextFieldDecoration.copyWith(
+                          hintStyle: TextStyle(color: Colors.grey)),
                     ),
                   ),
                   FlatButton(
-                    onPressed: () {
+                    onPressed: () async {
                       //Implement send functionality.
+                      if(message.isNotEmpty) {
+                        msgTxtController.clear();
+                        await addMessageInDB(message);
+                      }
                     },
                     child: Text(
                       'Send',
@@ -76,11 +89,21 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   void getCurrentUser() async {
-
     final currentUser = await _auth.currentUser();
-    if(currentUser!=null) {
+    if (currentUser != null) {
       print(currentUser.email);
       loggedInUser = currentUser;
+
+      setState(() {
+
+      });
     }
+  }
+
+  Future<DocumentReference> addMessageInDB(message) {
+    var db = Firestore.instance;
+    return db
+        .collection("messages")
+        .add({"text": message, "sender": loggedInUser.email});
   }
 }
